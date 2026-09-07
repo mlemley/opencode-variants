@@ -7,7 +7,7 @@ class OpencodeVariants < Formula
   version "0.2.0"
   homepage "https://example.invalid/opencode-variants" # TODO real homepage
   url "file:///tmp/opencode-variants-0.2.0.tar.gz"
-  sha256 "8e125bac06768f52cbd2ab0f6b1719522b16f12bfda27b7696d91af2ad689a12"
+  sha256 "179e1cfd9d52bca372553edb07f582cbf64adf7a46ea2dc7f2830f26cf21ac53"
 
   depends_on "direnv"
   depends_on "node"
