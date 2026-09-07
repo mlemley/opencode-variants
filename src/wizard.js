@@ -1,5 +1,6 @@
 import readline from "node:readline/promises";
 import process from "node:process";
+import { assertVariantName } from "./variants.js";
 
 const PLACEMENT = {
   "all-cloud": {
@@ -204,7 +205,7 @@ export async function runWizard({ roles, catalog, slots = {}, prefill = {} }) {
     });
   };
   try {
-    console.log(`${hi(bold("ai-model-configure"))} ${dim("— build a routing variant; nothing is saved until the end.")}`);
+    console.log(`${hi(bold("ov"))} ${dim("— build a routing variant; nothing is saved until the end.")}`);
 
     sec("your setup (from your opencode config + agents)");
     for (const { role, current, mode } of interviewPlan(roles)) {
@@ -212,7 +213,11 @@ export async function runWizard({ roles, catalog, slots = {}, prefill = {} }) {
     }
 
     sec(prefill.name ? `variant ${bold(prefill.name)} — Enter keeps the current value` : "new variant");
-    const name = (await rl.question(`    name${prefill.name ? dim(` [${prefill.name}]`) : ""}: `)).trim() || prefill.name || "";
+    let name;
+    for (;;) {
+      name = (await rl.question(`    name${prefill.name ? dim(` [${prefill.name}]`) : ""}: `)).trim() || prefill.name || "";
+      try { assertVariantName(name); break; } catch (err) { console.log(dim(`  ${err.message} (lowercase, digits, hyphens; not a subcommand name)`)); }
+    }
     const description = (await rl.question(`    description${prefill.description ? dim(` [${prefill.description}]`) : ""}: `)).trim() || prefill.description || "";
 
     const pickRef = {};

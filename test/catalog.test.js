@@ -60,7 +60,7 @@ test("mergeCatalog prefers local entries without letting nulls clobber remote me
 });
 
 test("refreshCatalog caches to models.json and survives offline", async () => {
-  const env = { AMC_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
+  const env = { OV_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
   const merged = await refreshCatalog({
     env,
     fetchFn: () => Promise.reject(new Error("offline")),
@@ -73,7 +73,7 @@ test("refreshCatalog caches to models.json and survives offline", async () => {
 });
 
 test("discoverCatalog merges live `opencode models` refs without clobbering known metadata", async () => {
-  const env = { AMC_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
+  const env = { OV_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
   const out = await discoverCatalog({
     env,
     run: async () => "anthropic/fable-5\nacme/big\n",
@@ -88,7 +88,7 @@ test("discoverCatalog merges live `opencode models` refs without clobbering know
 });
 
 test("discoverCatalog falls back to cache + configs when opencode is unavailable", async () => {
-  const env = { AMC_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
+  const env = { OV_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")) };
   const out = await discoverCatalog({
     env,
     run: async () => { throw new Error("ENOENT"); },
@@ -98,8 +98,8 @@ test("discoverCatalog falls back to cache + configs when opencode is unavailable
 });
 
 test("cleanEnvForProbe drops the injected config but keeps everything else", () => {
-  const out = cleanEnvForProbe({ HOME: "/h", AMC_HOME: "/a", OPENCODE_CONFIG_CONTENT: "{...}" });
-  assert.deepEqual(out, { HOME: "/h", AMC_HOME: "/a" });
+  const out = cleanEnvForProbe({ HOME: "/h", OV_HOME: "/a", OPENCODE_CONFIG_CONTENT: "{...}" });
+  assert.deepEqual(out, { HOME: "/h", OV_HOME: "/a" });
 });
 
 test("discoverCatalog probes opencode without the injected config content", async () => {
@@ -111,8 +111,8 @@ test("discoverCatalog probes opencode without the injected config content", asyn
   fs.chmodSync(stub, 0o755);
   const out = await discoverCatalog({
     env: {
-      AMC_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")),
-      AMC_OPENCODE_BIN: stub,
+      OV_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-catstate-")),
+      OV_OPENCODE_BIN: stub,
       OPENCODE_CONFIG_CONTENT: JSON.stringify({ agent: { plan: { model: "acme/big" } } }),
     },
     opencodeJson: fixture(),

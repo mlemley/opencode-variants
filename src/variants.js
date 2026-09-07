@@ -8,7 +8,7 @@ export function variantsDir(env) {
 }
 
 export function scopedVariantsDir(dir) {
-  return path.join(dir, ".ai-model-configure", "variants");
+  return path.join(dir, ".opencode-variants", "variants");
 }
 
 function walkUp(cwd) {
@@ -31,7 +31,7 @@ function valid(v) {
   return true;
 }
 
-// Nearest tree-scoped definition (<dir>/.ai-model-configure/variants/<name>.json
+// Nearest tree-scoped definition (<dir>/.opencode-variants/variants/<name>.json
 // walking up from cwd) shadows the global store; a shadowing file that fails
 // validation returns null rather than silently falling through to global.
 export function resolveVariant(name, env = process.env, cwd = process.cwd()) {
@@ -60,7 +60,7 @@ export function variantFilePath(name, env = process.env, cwd = process.cwd()) {
 }
 
 // The tree's variant store: nearest directory (self included) owning a
-// .ai-model-configure/variants dir, or null when no tree store exists.
+// .opencode-variants/variants dir, or null when no tree store exists.
 export function nearestStoreDir(cwd = process.cwd()) {
   for (const d of walkUp(cwd)) {
     if (fs.existsSync(scopedVariantsDir(d))) return d;
@@ -87,7 +87,15 @@ export function variantNames(env = process.env, cwd = process.cwd()) {
 }
 
 // scopeDir: tree base directory to store in; null keeps it global.
+export const RESERVED = new Set(["init", "add", "use", "edit", "fork", "patch", "restrict", "restrictions", "models", "status", "show", "log", "inspect", "info", "rm", "remove", "delete", "unmanage", "detach", "forget", "prune", "serve", "cost", "help", "variants"]);
+
+export function assertVariantName(name) {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`invalid variant name: ${name}`);
+  if (RESERVED.has(name)) throw new Error(`variant name '${name}' collides with an ov subcommand — pick another`);
+}
+
 export function saveVariant(variant, env = process.env, scopeDir = null) {
+  assertVariantName(variant.name);
   const { name, ...rest } = variant;
   const dir = scopeDir ? scopedVariantsDir(scopeDir) : variantsDir(env);
   fs.mkdirSync(dir, { recursive: true });

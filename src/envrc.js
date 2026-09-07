@@ -16,9 +16,9 @@ export function writeEnvrc(dir, content, { variantName, force = false, env = pro
     }
   }
   fs.writeFileSync(target, content);
-  writeJson(path.join(dir, ".ai-model-configure.json"), { variant: variantName });
+  writeJson(path.join(dir, ".opencode-variants.json"), { variant: variantName });
   registerDir(dir, env);
-  const cmd = env.AMC_DIRENV || "direnv";
+  const cmd = env.OV_DIRENV || "direnv";
   try {
     execFileSync(cmd, ["allow", dir], { stdio: "ignore" });
   } catch {
@@ -75,11 +75,11 @@ export function unmanageDir(dir, { env = process.env } = {}) {
       envrcAction = "kept unmanaged .envrc";
     }
   }
-  const selPath = path.join(dir, ".ai-model-configure.json");
+  const selPath = path.join(dir, ".opencode-variants.json");
   const hadSel = fs.existsSync(selPath);
   if (hadSel) fs.rmSync(selPath);
   const unregistered = unregisterDir(dir, env);
-  const cmd = env.AMC_DIRENV || "direnv";
+  const cmd = env.OV_DIRENV || "direnv";
   try {
     execFileSync(cmd, ["reload"], { stdio: "ignore", cwd: dir });
   } catch { /* best-effort; user can reload or open a new shell */ }
@@ -87,7 +87,7 @@ export function unmanageDir(dir, { env = process.env } = {}) {
 }
 
 export function selectorOf(dir) {
-  return readJson(path.join(dir, ".ai-model-configure.json"), null);
+  return readJson(path.join(dir, ".opencode-variants.json"), null);
 }
 
 // The variant currently in effect for a directory: its own selector if

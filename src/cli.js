@@ -8,6 +8,9 @@ import { resolveRoles } from "./roles.js";
 import { generateConfig, renderEnvrc, markerHash, contentHash } from "./generate.js";
 import { writeEnvrc, loadDirs, writeDirs, selectorOf, unmanageDir, nearestSelector } from "./envrc.js";
 import { runWizard, editRestrictions } from "./wizard.js";
+import { runServe } from "./serve.js";
+import { costReport } from "./cost.js";
+import { migrateIfNeeded } from "./migrate.js";
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const c = (code, s) => (COLOR ? `\x1b[${code}m${s}\x1b[0m` : s);
@@ -35,13 +38,13 @@ function applyPicks(picks, env) {
 }
 
 function printHelp() {
-  console.log(`ai-model-configure — per-directory OpenCode model routing
+  console.log(`ov — per-directory OpenCode model routing
 
-Usage: ai-model-configure <command>
+Usage: ov <command>
 
   init [--variant <name>]  establish a NEW environment: wizard creates a
                            variant and it is paired with this directory
-                           (.envrc + .ai-model-configure/variants here;
+                           (.envrc + .opencode-variants/variants here;
                            --global stores the definition globally) —
                            or just apply an existing variant here
   add                      wizard: contribute a new variant to the tree's
@@ -81,19 +84,27 @@ Usage: ai-model-configure <command>
   prune [--force]          drop registry entries for gone/broken
                            directories; --force also unmanages
                            directories whose variant no longer exists
-  help                     this help
+  serve <variant> [args…]  launch opencode with a variant's config
+                           injected (args pass through; works from any
+                           directory)
+  cost [provider]          model prices (USD per million tokens), cheap
+                           first, grouped by provider
+  help                     this help (bare ov prints help + status)
 
-Also installed: ai <variant> [opencode args…] — launch opencode with a
-variant's config injected, and ai-cost [provider] — model prices.
-
-State lives in ~/.config/ai-model-configure/ (variants/, slots.json,
+State lives in ~/.config/opencode-variants/ (variants/, slots.json,
 dirs.json). Variants are also allowed per tree: the nearest
-<dir>/.ai-model-configure/variants/<name>.json walking up from you
+<dir>/.opencode-variants/variants/<name>.json walking up from you
 shadows the global store, so ~/work can carry its own "hybrid".
-Generated files are marked '# managed-by: ai-model-configure'.`);
+Generated files are marked '# managed-by: opencode-variants'.`);
 }
 
 export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), env = process.env } = {}) {
+  const mig = migrateIfNeeded(env);
+  for (const st of mig.steps) console.error(`migrated: ${st}`);
+
+  const sIdx = argv.indexOf("serve");
+  if (sIdx >= 0) return runServe(argv.slice(sIdx + 1), { cwd, env });
+
   const force = argv.includes("--force");
   const global = argv.includes("--global");
   const args = argv.filter((a) => a !== "--force" && a !== "--global");
@@ -105,6 +116,15 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     const cfg = generateConfig(v, loadSlots(env));
     writeEnvrc(dir, renderEnvrc(cfg, { variantName: name, cwd: dir }), { variantName: name, force, env });
     console.log(`${dir} → ${name}`);
+  }
+
+  for (const d of mig.legacyMarkerDirs) {
+    const sel = selectorOf(d)?.variant;
+    try {
+      if (sel) applyVariant(d, sel);
+    } catch (err) {
+      console.error(`legacy marker in ${d}/.envrc not regenerated: ${err.message}`);
+    }
   }
 
   if (cmd === "init") {
@@ -122,7 +142,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       });
       applyPicks(picks, env);
       // init pairs the environment with its own definition: .envrc and
-      // .ai-model-configure/variants/<name>.json both land here.
+      // .opencode-variants/variants/<name>.json both land here.
       if (!global && resolveVariant(built.name, env, cwd)?.scope === cwd) {
         console.log(dim(`replacing existing ${built.name} in ${cwd}`));
       } else if (!global && variantFilePath(built.name, env, cwd)) {
@@ -149,8 +169,25 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     return;
   }
 
-  if (cmd === "help" || cmd === "--help" || cmd === "-h" || !cmd) {
+  if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     printHelp();
+    return;
+  }
+
+  if (!cmd) {
+    printHelp();
+    console.log("");
+    printStatus(false);
+    return;
+  }
+
+  if (cmd === "cost") {
+    const filter = rest.find((a) => !a.startsWith("-"));
+    const report = costReport(await discoverCatalog({ env }), filter);
+    if (!report) {
+      fail(filter ? `no provider "${filter}" in your catalog` : "catalog empty: run ov models refresh");
+    }
+    process.stdout.write(report);
     return;
   }
 
@@ -161,7 +198,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     }
     const names = variantNames(env, cwd);
     if (!names.length) {
-      console.log("no variants yet — run: ai-model-configure init");
+      console.log("no variants yet — run: ov init");
       return;
     }
     const dirs = loadDirs(env);
@@ -323,7 +360,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     }
     if (sub === "set") {
       const [, slot, ref] = rest;
-      if (!slot || !ref) fail("usage: ai-model-configure models set <slot> <provider/model>");
+      if (!slot || !ref) fail("usage: ov models set <slot> <provider/model>");
       const slots = loadSlots(env);
       if (!Object.hasOwn(slots, slot)) fail(`unknown slot: ${slot}`);
       slots[slot] = ref;
@@ -505,9 +542,8 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
     return;
   }
 
-  if (cmd === "status") {
+  function printStatus(all) {
     const here = fs.realpathSync(cwd);
-    const all = rest.includes("--all");
     const inTree = loadDirs(env).filter((d) => {
       if (all) return true;
       const rd = fs.realpathSync(d);
@@ -558,8 +594,12 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd(), 
       }
     }
     if (!all) console.log(dim(`  scope: ${cwd} (status --all for every managed directory)`));
+  }
+
+  if (cmd === "status") {
+    printStatus(rest.includes("--all"));
     return;
   }
 
-  fail(`unknown command: ${cmd} (try: ai-model-configure help)`);
+  fail(`unknown command: ${cmd} (try: ov help)`);
 }

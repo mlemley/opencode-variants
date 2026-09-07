@@ -1,27 +1,28 @@
-# ai-model-configure
+# opencode-variants
 
 Route OpenCode's agents **per directory** — cloud where you want it,
 local where you need it, different rules per client or project — with
-named variants, direnv, and zero config drift.
+named variants, direnv, and zero config drift. The command is `ov`.
 
 <!-- markdownlint-disable MD014 -->
 ```console
-$ cd ~/work/acme                      # client tree: company rules
-$ ai-model-configure use hybrid       # plan: copilot/premium *high
-$ opencode                            # models follow the directory
+$ cd ~/work/acme                  # client tree: company rules
+$ ov use hybrid                   # plan: copilot/premium *high
+$ opencode                        # models follow the directory
 
-$ cd ~/side/auto-notes                # same laptop, personal rules
-$ ai-model-configure use all-local    # everything on-box
+$ cd ~/side/auto-notes            # same laptop, personal rules
+$ ov use all-local                # everything on-box
 $ opencode
 
-$ ai hybrid serve                     # or launch any variant from anywhere
+$ ov serve hybrid tui             # launch any variant from anywhere
 ```
+
 <!-- markdownlint-enable MD014 -->
 
 **Why**: one global `opencode.json` forces one model policy everywhere.
 Work trees want premium reasoning and locked providers; side projects
 want free local models; experiments want a one-off override *just here*.
-`ai-model-configure` makes your directory the switch.
+`ov` makes your directory the switch.
 
 **How**:
 
@@ -34,10 +35,10 @@ want free local models; experiments want a one-off override *just here*.
   wizard that shows real models with context limits, $/Mtok pricing,
   and reasoning efforts.
 - Variants resolve **by directory tree**: the nearest
-  `.ai-model-configure/variants/` store wins, so `~/work` can carry its
+  `.opencode-variants/variants/` store wins, so `~/work` can carry its
   own `hybrid` while everything else uses the global one. Two shared
   slots (`model-reasoning`, `model-fast`) move whole fleets of
-  directories with one `models set`.
+  directories with one `ov models set`.
 
 Hand-edit a generated file and it's detected, protected, and reported —
 never silently overwritten.
@@ -57,13 +58,12 @@ never silently overwritten.
 
 ```sh
 brew tap <you>/tools
-brew install <you>/tools/ai-model-configure
+brew install <you>/tools/opencode-variants
 ```
 
-Installs three commands: `ai-model-configure`, `ai`, and `ai-cost`.
-The formula lives in this repo at `Formula/ai-model-configure.rb`
-(also the source of the tap); point `url`/`homepage` at the release
-archive when cutting a tag.
+Installs `ov` (long alias `opencode-variants`). The formula lives in
+this repo at `Formula/opencode-variants.rb` (also the source of the
+tap); point `url`/`homepage` at the release archive when cutting a tag.
 
 ### npm / direct
 
@@ -75,56 +75,57 @@ or add `bin/` to your `PATH`.
 
 ## Usage
 
-Commands act on the current working directory (a project root).
+Commands act on the current working directory (a project root). Running
+`ov` with no arguments prints this help plus your current status.
 
-- `ai-model-configure init [--variant NAME]` (or `--variant=NAME`)
+- `ov init [--variant NAME]` (or `--variant=NAME`)
   Establish a NEW environment path: writes a managed `.envrc` and runs
   `direnv allow`; children inherit this environment from here. With a
   known variant it only binds that variant; otherwise the wizard
   (interactive terminal) creates one and it is PAIRED with this
-  directory — the definition lands in `./.ai-model-configure/variants/`
+  directory — the definition lands in `./.opencode-variants/variants/`
   next to the `.envrc` (`--global` stores the definition globally; a
   same-named variant higher up is shadowed, not touched).
-- `ai-model-configure add`
+- `ov add`
   Contribute a variant to the environment you're standing in: runs the
   wizard and saves the definition into the nearest
-  `.ai-model-configure/variants` store walking up (global store if
+  `.opencode-variants/variants` store walking up (global store if
   there is no tree here). Applies nothing — bind directories with
-  `use <name>`. Requires a TTY.
-- `ai-model-configure use [variant]`
+  `ov use <name>`. Requires a TTY.
+- `ov use [variant]`
   Switch this directory. Without an argument, list variants (tier,
-  description, which directories use each). The alias
-  `ai-model-configure variants` lists as well.
-- `ai-model-configure edit [variant]`
+  description, which directories use each). The alias `ov variants`
+  lists as well.
+- `ov edit [variant]`
   Re-run the wizard with name/description/roles prefilled — from the
   named variant, or from the one *loaded here* (this directory's, else
   the nearest parent's; edits to a parent's variant save in place). The
   variant you enter is saved and every directory using it regenerates.
   Requires a TTY.
-- `ai-model-configure fork [variant]`
+- `ov fork [variant]`
   Alternative to the parent's setup: copy the loaded (or named) variant
   into a NEW variant (wizard prefilled, new name), saved beside the
   original in the same store — so the whole tree can `use` it — and
   applied here. Independent from the original afterwards. Requires a
   TTY.
-- `ai-model-configure patch <role> <provider/model>`
+- `ov patch <role> <provider/model>`
   Quick one-role change for immediate use, no wizard. On a directory
   with its own variant it updates that variant in place; in an unmanaged
   subdirectory it forks the nearest parent's variant as
   `<variant>-<role>`, saved beside it and applied here.
-- `ai-model-configure restrict [variant]`
+- `ov restrict [variant]`
   Change only the restrictions (disabled providers, per-provider model
   allow/deny) of an existing variant — defaults to this directory's
   variant. Enter keeps a value, `-` clears it. Requires a TTY.
-- `ai-model-configure models`
+- `ov models`
   Show the two slots: `model-reasoning`, `model-fast` (values start
   unset).
-- `ai-model-configure models refresh`
+- `ov models refresh`
   Refresh the cached model catalog (your `opencode.json` + models.dev).
-- `ai-model-configure models set <slot> <provider/model>`
+- `ov models set <slot> <provider/model>`
   One command to move a slot; every managed directory whose variant
   references it regenerates.
-- `ai-model-configure status`
+- `ov status`
   The environment chain in effect for the current directory only: this
   directory and its parent environments, each with active variant and
   drift state (`ok` / `drifted` / `missing .envrc` / `variant missing`)
@@ -132,48 +133,51 @@ Commands act on the current working directory (a project root).
   overrides, parent environments where not overloaded, and the current
   scope, nearest match wins, each marked with its store and `(in use)`
   in green. Child environments are excluded unless `--all`.
-- `ai-model-configure show <variant>` (alias `log`; defaults to this
-  directory's variant)
+- `ov show <variant>` (alias `log`; defaults to this directory's
+  variant)
   Pretty-print a variant: `role -> provider/model (via slot) * effort`
   per agent, plus where it's applied and its restrictions. Slot-backed
   roles show the currently resolved model (red when the slot is unset).
-- `ai-model-configure rm <variant>`
+- `ov serve <variant> [opencode args…]`
+  Launch opencode with the variant's routing config injected into its
+  environment (a config container — works from any directory, no
+  direnv/`.envrc` involvement for the launch). Any extra args are passed
+  to opencode; `ov serve` with no variant lists variants. An unset slot
+  fails loudly before anything launches.
+- `ov cost [provider]`
+  Model prices (USD per million tokens, from `opencode models
+  --verbose`) grouped by provider, cheap first; free and unknown prices
+  are labelled. Pass a provider to filter.
+- `ov rm <variant>`
   Delete a variant file (the tree-scoped one if a shadow resolves from
   here). Refuses while directories still reference it unless `--force`.
-- `ai-model-configure unmanage [dir…]` (alias `detach`)
+- `ov unmanage [dir…]` (alias `detach`)
   Detach directories (default: this one): delete the generated `.envrc`
   and the selector file and drop the registry entry. A drifted or
   hand-written `.envrc` is kept, never deleted.
-- `ai-model-configure prune [--force]`
+- `ov prune [--force]`
   Clean the registry: drop entries whose directory is gone or whose
   `.envrc`/selector were already deleted by hand. With `--force`, also
   fully unmanage directories whose variant no longer exists (the usual
   aftermath of deleting a variant file).
-- `ai-model-configure help`
-  Show usage. Running with no arguments shows the same help.
-- `ai <variant> [opencode args…]`
-  Launch opencode with the variant's routing config injected into its
-  environment (a config container — works from any directory, no
-  direnv/`.envrc` involvement for the launch). Any extra args are passed
-  to opencode; `ai` with no args lists variants. An unset slot fails
-  loudly before anything launches.
-- `ai-cost [provider]`
-  Separate command: model prices (USD per million tokens, from
-  `opencode models --verbose`) grouped by provider; free and unknown
-  prices are labelled. Pass a provider to filter.
+- `ov help`
+  Show usage. Running with no arguments shows help plus status.
 - `--force` (any position)
   Overwrite a hand-edited (drifted) `.envrc`, saving the old file as
   `.envrc.drifted-backup` first.
+
+Variant names are lowercase, digits, and hyphens, and may not collide
+with subcommand names (`use`, `status`, …).
 
 ### Examples
 
 ```sh
 cd ~/code/projects/foo
-ai-model-configure init            # wizard (or: init --variant my-tier)
-direnv reload                      # activate now
-ai-model-configure use my-tier     # switch later
-ai-model-configure models set model-fast acme/fast-llama
-ai-model-configure status
+ov init                    # wizard (or: ov init --variant my-tier)
+direnv reload              # activate now
+ov use my-tier             # switch later
+ov models set model-fast acme/fast-llama
+ov status
 ```
 
 ## How the wizard builds a variant
@@ -210,7 +214,7 @@ ai-model-configure status
 
 5. If a role uses a slot that has no model yet, you pick one from the
    same provider/model menus. Esc leaves it unset (roles using it fail
-   until `models set <slot> <provider/model>`).
+   until `ov models set <slot> <provider/model>`).
 
 6. Optional restrictions, chosen from what opencode reports for *you*:
    disable providers (e.g. `beta, acme`, or `only:a,b` to keep just
@@ -222,7 +226,7 @@ ai-model-configure status
 ## State and environment variables
 
 ```text
-~/.config/ai-model-configure/
+~/.config/opencode-variants/
 ├── slots.json          # model-reasoning / model-fast (null = unset)
 ├── models.json         # model catalog cache
 ├── variants/*.json     # your variants, nothing seeded
@@ -230,12 +234,12 @@ ai-model-configure status
 ```
 
 Per managed directory: `.envrc` (generated) and
-`.ai-model-configure.json` (selector recording the active variant).
+`.opencode-variants.json` (selector recording the active variant).
 
 ### Tree-scoped variants
 
 Variants resolve by walking up from your directory: the nearest
-`<dir>/.ai-model-configure/variants/<name>.json` shadows the global
+`<dir>/.opencode-variants/variants/<name>.json` shadows the global
 store, so a variant named `hybrid` defined under `~/work` applies to
 that tree while `~` (and everywhere else) keeps its own `hybrid`. The
 shadowing file is authoritative — a corrupt one errors rather than
@@ -245,16 +249,26 @@ re-save where the variant was resolved from; `variants`/`show` mark
 scoped entries with their tree path. Slot values (`models set`) stay
 global.
 
-| Variable           | Purpose                                 |
-|--------------------|-----------------------------------------|
-| `AMC_HOME`         | Relocate the state directory            |
-| `AMC_DIRENV`       | Path to the `direnv` binary             |
-| `AMC_OPENCODE_BIN` | Path to the `opencode` binary (wizard)  |
+| Variable             | Purpose                                 |
+|----------------------|-----------------------------------------|
+| `OV_HOME`            | Relocate the state directory            |
+| `OV_DIRENV`          | Path to the `direnv` binary             |
+| `OV_OPENCODE_BIN`    | Path to the `opencode` binary (wizard)  |
+
+### Migrating from `ai-model-configure`
+
+Any `ov` command auto-migrates pre-rename installs: the old
+`~/.config/ai-model-configure` state directory, per-directory
+`.ai-model-configure.json` selectors and `.ai-model-configure/` tree
+stores are renamed, and managed `.envrc` files regenerate under the new
+marker (drifted ones are kept untouched and reported). The old
+`AMC_*` variables are honored for the migration lookup; everything else
+uses `OV_*`.
 
 ## Generated file protection
 
 Every managed `.envrc` starts with a
-`# managed-by: ai-model-configure <variant> @<sha256>` marker whose hash
+`# managed-by: opencode-variants <variant> @<sha256>` marker whose hash
 covers the body. Hand-edit the body and regeneration refuses to touch the
 file until `--force` (which backs the old file up first). Bulk
 regenerations (`models set`, `edit`) skip drifted directories, report

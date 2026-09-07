@@ -9,7 +9,7 @@ import { loadDirs, selectorOf } from "./envrc.js";
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const dim = (s) => (COLOR ? `\x1b[2m${s}\x1b[0m` : s);
 
-export function runAi(argv = process.argv.slice(2), { cwd = process.cwd(), env = process.env } = {}) {
+export function runServe(argv = process.argv.slice(2), { cwd = process.cwd(), env = process.env } = {}) {
   const [name, ...opencodeArgs] = argv;
   const names = variantNames(env, cwd);
   const here = fs.realpathSync(cwd);
@@ -22,14 +22,14 @@ export function runAi(argv = process.argv.slice(2), { cwd = process.cwd(), env =
     .map((d) => fs.realpathSync(d));
 
   if (!name || name === "-h" || name === "--help" || name === "help") {
-    const lines = [`usage: ai <variant> [opencode args…]`, ``, `Launches opencode with the variant's routing config injected (a config`, `container: no direnv or per-directory .envrc needed for the launch).`];
+    const lines = [`usage: ov serve <variant> [opencode args…]`, ``, `Launches opencode with the variant's routing config injected (a config`, `container: no direnv or per-directory .envrc needed for the launch).`];
     if (names.length) {
       const local = names.filter((n) => usedIn(n).length);
       const other = names.filter((n) => !usedIn(n).length);
       lines.push("", `in this tree:  ${local.join(", ") || dim("(none)")}`);
       if (other.length) lines.push(`other:         ${other.join(", ")}`);
     } else {
-      lines.push("", "no variants — run: ai-model-configure init");
+      lines.push("", "no variants — run: ov init");
     }
     console.log(lines.join("\n"));
     process.exit(name ? 0 : 1);
@@ -46,7 +46,7 @@ export function runAi(argv = process.argv.slice(2), { cwd = process.cwd(), env =
     console.error(`error: ${err.message}`);
     process.exit(1);
   }
-  const bin = env.AMC_OPENCODE_BIN || "opencode";
+  const bin = env.OV_OPENCODE_BIN || "opencode";
   console.log(`${dim(`launching ${bin} with variant`)} ${name} ${dim(`(${v.tier ?? "?"})${opencodeArgs.length ? ` · opencode args: ${opencodeArgs.join(" ")}` : ""}`)}`);
   if (!usedIn(name).length) {
     const where = usedAnywhere(name);
@@ -58,7 +58,7 @@ export function runAi(argv = process.argv.slice(2), { cwd = process.cwd(), env =
     env: { ...env, OPENCODE_CONFIG_CONTENT: JSON.stringify(cfg, null, 2) },
   });
   if (r.error) {
-    console.error(`error: ${r.error.code === "ENOENT" ? `${bin} not found on PATH (or set AMC_OPENCODE_BIN)` : r.error.message}`);
+    console.error(`error: ${r.error.code === "ENOENT" ? `${bin} not found on PATH (or set OV_OPENCODE_BIN)` : r.error.message}`);
     process.exit(1);
   }
   process.exit(r.status ?? 0);

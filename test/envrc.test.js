@@ -8,7 +8,7 @@ import { renderEnvrc } from "../src/generate.js";
 
 function setup() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-dir-")));
-  const env = { AMC_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-state-")), AMC_DIRENV: "/usr/bin/true" };
+  const env = { OV_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "amc-state-")), OV_DIRENV: "/usr/bin/true" };
   const content = renderEnvrc({ provider: {}, agent: {} }, { variantName: "t", cwd: dir });
   return { dir, env, content };
 }

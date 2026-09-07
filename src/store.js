@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 
 export function stateDir(env = process.env) {
-  return env.AMC_HOME || path.join(os.homedir(), ".config", "ai-model-configure");
+  return env.OV_HOME || path.join(os.homedir(), ".config", "opencode-variants");
 }
 
 export function stateFile(env, name) {

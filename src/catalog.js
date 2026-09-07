@@ -103,7 +103,7 @@ export function cleanEnvForProbe(env) {
 }
 
 function defaultRunOpencode(env) {
-  const bin = env.AMC_OPENCODE_BIN || "opencode";
+  const bin = env.OV_OPENCODE_BIN || "opencode";
   // Probe with a sanitized env: if OPENCODE_CONFIG_CONTENT is exported
   // (e.g. by a direnv-loaded managed .envrc we generated), opencode restricts
   // its model list to the injected config instead of listing all models.

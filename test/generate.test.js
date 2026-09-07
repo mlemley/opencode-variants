@@ -50,7 +50,7 @@ test("empty restriction fields produce no provider/disabled_providers keys", () 
 
 test("renderEnvrc marker round-trips; hand-edit breaks the hash match", () => {
   const text = renderEnvrc({ agent: {} }, { variantName: "t", cwd: "/d" });
-  assert.match(text, /^# managed-by: ai-model-configure t @[0-9a-f]{64}\n/);
+  assert.match(text, /^# managed-by: opencode-variants t @[0-9a-f]{64}\n/);
   assert.match(text, /PATH_add '\/d\/bin'/);
   assert.equal(markerHash(text), contentHash(text));
   const edited = text.replace('"agent": {}', '"agent": {"x":1}');

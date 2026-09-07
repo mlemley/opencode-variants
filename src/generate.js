@@ -33,7 +33,7 @@ export function generateConfig(variant, slots) {
 
 export function renderEnvrc(cfg, { variantName, cwd }) {
   const body = `export OPENCODE_CONFIG_CONTENT=${shq(JSON.stringify(cfg, null, 2))}\n\nPATH_add ${shq(`${cwd}/bin`)}\n`;
-  return `# managed-by: ai-model-configure ${variantName} @${sha256(body)}\n${body}`;
+  return `# managed-by: opencode-variants ${variantName} @${sha256(body)}\n${body}`;
 }
 
 function shq(s) {
@@ -41,7 +41,7 @@ function shq(s) {
 }
 
 export function markerHash(text) {
-  const m = text.match(/^# managed-by: ai-model-configure \S+ @([0-9a-f]{64})/);
+  const m = text.match(/^# managed-by: opencode-variants \S+ @([0-9a-f]{64})/);
   return m ? m[1] : null;
 }
 

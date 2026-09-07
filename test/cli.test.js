@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-const BIN = new URL("../bin/ai-model-configure", import.meta.url).pathname;
+const BIN = new URL("../bin/ov", import.meta.url).pathname;
 
 function makeEnv() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "amc-home-"));
@@ -13,7 +14,7 @@ function makeEnv() {
   fs.writeFileSync(path.join(home, ".config", "opencode", "opencode.json"), JSON.stringify({
     agent: { plan: {}, build: {}, executor: {} },
   }));
-  return { HOME: home, AMC_HOME: path.join(home, "state"), AMC_DIRENV: "/usr/bin/true", PATH: process.env.PATH };
+  return { HOME: home, OV_HOME: path.join(home, "state"), OV_DIRENV: "/usr/bin/true", PATH: process.env.PATH };
 }
 
 function run(args, { cwd, env }) {
@@ -21,8 +22,8 @@ function run(args, { cwd, env }) {
 }
 
 function makeVariant(env, name, doc) {
-  fs.mkdirSync(path.join(env.AMC_HOME, "variants"), { recursive: true });
-  fs.writeFileSync(path.join(env.AMC_HOME, "variants", `${name}.json`), JSON.stringify(doc));
+  fs.mkdirSync(path.join(env.OV_HOME, "variants"), { recursive: true });
+  fs.writeFileSync(path.join(env.OV_HOME, "variants", `${name}.json`), JSON.stringify(doc));
 }
 
 test("init/status/use/models-set slot fan-out end to end", () => {
@@ -38,7 +39,7 @@ test("init/status/use/models-set slot fan-out end to end", () => {
   const out = run(["init", "--variant", "work"], { cwd: proj, env });
   assert.match(out, /→ work/);
   const envrc = fs.readFileSync(path.join(proj, ".envrc"), "utf8");
-  assert.match(envrc, /# managed-by: ai-model-configure work @[0-9a-f]{64}/);
+  assert.match(envrc, /# managed-by: opencode-variants work @[0-9a-f]{64}/);
   assert.match(envrc, /"model": "prov\/cloud"/);
   assert.match(envrc, /"model": "prov\/fast"/);
   assert.doesNotMatch(envrc, /disabled_providers|"provider":/);
@@ -131,8 +132,8 @@ test("init without --variant fails non-interactively", () => {
 test("use listing survives corrupt variant files", () => {
   const env = makeEnv();
   const proj = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-proj-")));
-  fs.mkdirSync(path.join(env.AMC_HOME, "variants"), { recursive: true });
-  fs.writeFileSync(path.join(env.AMC_HOME, "variants", "broken.json"), "{oops");
+  fs.mkdirSync(path.join(env.OV_HOME, "variants"), { recursive: true });
+  fs.writeFileSync(path.join(env.OV_HOME, "variants", "broken.json"), "{oops");
   assert.match(run(["use"], { cwd: proj, env }), /broken \(broken/);
 });
 
@@ -176,7 +177,7 @@ test("status reports drifted and variant missing", () => {
   run(["init", "--variant", "v"], { cwd: proj, env });
   fs.appendFileSync(path.join(proj, ".envrc"), "# hand note\n");
   assert.match(run(["status"], { cwd: proj, env }), /\bdrifted\b/);
-  fs.rmSync(path.join(env.AMC_HOME, "variants", "v.json"));
+  fs.rmSync(path.join(env.OV_HOME, "variants", "v.json"));
   assert.match(run(["status"], { cwd: proj, env }), /\bvariant missing\b/);
 });
 
@@ -207,7 +208,7 @@ test("no arguments and help both print usage", () => {
   const env = makeEnv();
   for (const args of [[], ["help"]]) {
     const out = run(args, { cwd: fs.mkdtempSync(path.join(os.tmpdir(), "amc-h-")), env });
-    assert.match(out, /Usage: ai-model-configure/);
+    assert.match(out, /Usage: ov/);
     assert.match(out, /init/);
     assert.match(out, /models set/);
     assert.match(out, /status/);
@@ -286,8 +287,8 @@ test("scoped variant in a tree shadows the global one of the same name", () => {
   const proj = path.join(tree, "work", "proj");
   fs.mkdirSync(proj, { recursive: true });
   makeVariant(env, "hybrid", { tier: "cloud", description: "global hybrid", roles: { plan: { model: "prov/global" } } });
-  fs.mkdirSync(path.join(tree, ".ai-model-configure", "variants"), { recursive: true });
-  fs.writeFileSync(path.join(tree, ".ai-model-configure", "variants", "hybrid.json"), JSON.stringify({
+  fs.mkdirSync(path.join(tree, ".opencode-variants", "variants"), { recursive: true });
+  fs.writeFileSync(path.join(tree, ".opencode-variants", "variants", "hybrid.json"), JSON.stringify({
     tier: "hybrid", description: "work hybrid", roles: { plan: { model: "copilot/premium" } },
   }));
 
@@ -311,7 +312,7 @@ test("unmanage removes generated .envrc, selector, and registry entry", () => {
   const out = run(["unmanage"], { cwd: proj, env });
   assert.match(out, /removed \.envrc, selector removed, registry entry removed/);
   assert.equal(fs.existsSync(path.join(proj, ".envrc")), false);
-  assert.equal(fs.existsSync(path.join(proj, ".ai-model-configure.json")), false);
+  assert.equal(fs.existsSync(path.join(proj, ".opencode-variants.json")), false);
   assert.match(run(["status"], { cwd: proj, env }), /no environment in effect from here up/);
 
   assert.equal(fs.existsSync(path.join(proj, ".envrc")), false);
@@ -334,7 +335,7 @@ test("prune drops gone dirs; missing-variant dirs need --force (which unmanages 
   const proj = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-proj-")));
   makeVariant(env, "work", { tier: "cloud", roles: { plan: { model: "prov/cloud" } } });
   run(["init", "--variant", "work"], { cwd: proj, env });
-  const dirsFile = path.join(env.AMC_HOME, "dirs.json");
+  const dirsFile = path.join(env.OV_HOME, "dirs.json");
   const gone = path.join(os.tmpdir(), `amc-gone-${Date.now()}`);
   fs.writeFileSync(dirsFile, JSON.stringify([...JSON.parse(fs.readFileSync(dirsFile, "utf8")), gone]));
 
@@ -342,7 +343,7 @@ test("prune drops gone dirs; missing-variant dirs need --force (which unmanages 
   assert.match(out, new RegExp(`pruned ${gone} \\(directory gone\\)`));
   assert.match(run(["status"], { cwd: proj, env }), /work\b.*\bok\b/s);
 
-  fs.rmSync(path.join(env.AMC_HOME, "variants", "work.json"));
+  fs.rmSync(path.join(env.OV_HOME, "variants", "work.json"));
   const skip = run(["prune"], { cwd: proj, env });
   assert.match(skip, /skipped 1 directory with a missing variant/);
   assert.match(fs.readFileSync(dirsFile, "utf8"), new RegExp(proj));
@@ -366,18 +367,18 @@ test("rm refuses while dirs reference the variant; --force deletes; scoped rm pi
   const forced = run(["rm", "--force", "work"], { cwd: proj, env });
   assert.match(forced, /removed variant work/);
   assert.match(forced, /still reference it; run: prune --force/);
-  assert.equal(fs.existsSync(path.join(env.AMC_HOME, "variants", "work.json")), false);
+  assert.equal(fs.existsSync(path.join(env.OV_HOME, "variants", "work.json")), false);
 
   const tree = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-tree-")));
   makeVariant(env, "hybrid", { tier: "cloud", roles: { plan: { model: "prov/global" } } });
-  fs.mkdirSync(path.join(tree, ".ai-model-configure", "variants"), { recursive: true });
-  fs.writeFileSync(path.join(tree, ".ai-model-configure", "variants", "hybrid.json"), JSON.stringify({
+  fs.mkdirSync(path.join(tree, ".opencode-variants", "variants"), { recursive: true });
+  fs.writeFileSync(path.join(tree, ".opencode-variants", "variants", "hybrid.json"), JSON.stringify({
     tier: "hybrid", roles: { plan: { model: "copilot/premium" } },
   }));
   const out = run(["rm", "hybrid"], { cwd: tree, env });
-  assert.match(out, new RegExp(`removed variant hybrid.*\\.ai-model-configure`));
-  assert.equal(fs.existsSync(path.join(tree, ".ai-model-configure", "variants", "hybrid.json")), false);
-  assert.equal(fs.existsSync(path.join(env.AMC_HOME, "variants", "hybrid.json")), true);
+  assert.match(out, new RegExp(`removed variant hybrid.*\\.opencode-variants`));
+  assert.equal(fs.existsSync(path.join(tree, ".opencode-variants", "variants", "hybrid.json")), false);
+  assert.equal(fs.existsSync(path.join(env.OV_HOME, "variants", "hybrid.json")), true);
 });
 
 test("nearest parent .envrc is the baseline: patch forks it into the child", () => {
@@ -394,8 +395,8 @@ test("nearest parent .envrc is the baseline: patch forks it into the child", () 
   assert.match(envrc, /"model": "cloud\/x"/);
   assert.match(envrc, /"model": "loc\/b"/);
   // fork of a global variant is saved beside it (global store), not in the child
-  assert.match(fs.readFileSync(path.join(env.AMC_HOME, "variants", "local-plan.json"), "utf8"), /forked from local/);
-  assert.equal(fs.existsSync(path.join(proj, ".ai-model-configure", "variants", "local-plan.json")), false);
+  assert.match(fs.readFileSync(path.join(env.OV_HOME, "variants", "local-plan.json"), "utf8"), /forked from local/);
+  assert.equal(fs.existsSync(path.join(proj, ".opencode-variants", "variants", "local-plan.json")), false);
   const scoped = run(["variants"], { cwd: proj, env });
   assert.match(scoped, /local-plan/);
 
@@ -404,7 +405,7 @@ test("nearest parent .envrc is the baseline: patch forks it into the child", () 
   const envrc2 = fs.readFileSync(path.join(proj, ".envrc"), "utf8");
   assert.match(envrc2, /"model": "cloud\/y"/);
   assert.doesNotMatch(envrc2, /cloud\/x/);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(proj, ".ai-model-configure.json"), "utf8")), { variant: "local-plan" });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(proj, ".opencode-variants.json"), "utf8")), { variant: "local-plan" });
   run(["patch", "build", "cloud/z"], { cwd: proj, env });
   const envrc3 = fs.readFileSync(path.join(proj, ".envrc"), "utf8");
   assert.match(envrc3, /cloud\/y/);
@@ -423,15 +424,15 @@ test("patch fork of a tree-scoped parent is saved in the tree store", () => {
   const tree = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-tree-")));
   const app = path.join(tree, "app");
   fs.mkdirSync(app, { recursive: true });
-  fs.mkdirSync(path.join(tree, ".ai-model-configure", "variants"), { recursive: true });
-  fs.writeFileSync(path.join(tree, ".ai-model-configure", "variants", "twork.json"), JSON.stringify({
+  fs.mkdirSync(path.join(tree, ".opencode-variants", "variants"), { recursive: true });
+  fs.writeFileSync(path.join(tree, ".opencode-variants", "variants", "twork.json"), JSON.stringify({
     tier: "hybrid", description: "tree base", roles: { plan: { model: "tw/a" }, build: { model: "tw/b" } },
   }));
   run(["init", "--variant", "twork"], { cwd: tree, env });
 
   run(["patch", "plan", "cloud/t"], { cwd: app, env });
-  assert.match(fs.readFileSync(path.join(tree, ".ai-model-configure", "variants", "twork-plan.json"), "utf8"), /forked from twork/);
-  assert.equal(fs.existsSync(path.join(app, ".ai-model-configure", "variants", "twork-plan.json")), false);
+  assert.match(fs.readFileSync(path.join(tree, ".opencode-variants", "variants", "twork-plan.json"), "utf8"), /forked from twork/);
+  assert.equal(fs.existsSync(path.join(app, ".opencode-variants", "variants", "twork-plan.json")), false);
   assert.match(fs.readFileSync(path.join(app, ".envrc"), "utf8"), /cloud\/t/);
 });
 
@@ -464,8 +465,8 @@ test("status lists every variant visible from here; use from a child binds the t
   const tree = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-tree-")));
   const child = path.join(tree, "proj");
   fs.mkdirSync(child, { recursive: true });
-  fs.mkdirSync(path.join(tree, ".ai-model-configure", "variants"), { recursive: true });
-  fs.writeFileSync(path.join(tree, ".ai-model-configure", "variants", "t1.json"), JSON.stringify({
+  fs.mkdirSync(path.join(tree, ".opencode-variants", "variants"), { recursive: true });
+  fs.writeFileSync(path.join(tree, ".opencode-variants", "variants", "t1.json"), JSON.stringify({
     tier: "hybrid", description: "tree base", roles: { plan: { model: "tw/base" } },
   }));
   makeVariant(env, "t1", { tier: "cloud", description: "global twin", roles: { plan: { model: "g/base" } } });
@@ -487,4 +488,36 @@ test("status lists every variant visible from here; use from a child binds the t
   assert.doesNotMatch(st3, new RegExp(child));
   assert.doesNotMatch(st3, /g1\s+\[global: .*\(in use\)/);
   assert.match(run(["status", "--all"], { cwd: tree, env }), new RegExp(child));
+});
+
+test("migration: legacy ai-model-configure state, selectors, stores, and markers are carried over", () => {
+  const legacyState = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-legacy-")));
+  const proj = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "amc-proj-")));
+  fs.mkdirSync(path.join(legacyState, "variants"), { recursive: true });
+  fs.writeFileSync(path.join(legacyState, "variants", "old.json"), JSON.stringify({
+    tier: "cloud", roles: { plan: { model: "prov/x" } },
+  }));
+  fs.mkdirSync(path.join(proj, ".ai-model-configure", "variants"), { recursive: true });
+  fs.writeFileSync(path.join(proj, ".ai-model-configure", "variants", "tree.json"), JSON.stringify({
+    tier: "hybrid", roles: { plan: { model: "tw/y" } },
+  }));
+  fs.writeFileSync(path.join(proj, ".ai-model-configure.json"), JSON.stringify({ variant: "tree" }));
+  const body = "export OPENCODE_CONFIG_CONTENT='{}'\n";
+  const h = crypto.createHash("sha256").update(body).digest("hex");
+  fs.writeFileSync(path.join(proj, ".envrc"), `# managed-by: ai-model-configure tree @${h}\n${body}`);
+  fs.writeFileSync(path.join(legacyState, "dirs.json"), JSON.stringify([proj]));
+
+  const env = makeEnv();
+  env.AMC_HOME = legacyState;
+
+  const out = run(["variants"], { cwd: proj, env });
+  assert.match(out, /tree \(hybrid\)/);
+  assert.ok(fs.existsSync(path.join(env.OV_HOME, "variants", "old.json")));
+  assert.ok(fs.existsSync(path.join(proj, ".opencode-variants.json")));
+  assert.ok(fs.existsSync(path.join(proj, ".opencode-variants", "variants", "tree.json")));
+  const envrc = fs.readFileSync(path.join(proj, ".envrc"), "utf8");
+  assert.match(envrc, /# managed-by: opencode-variants/);
+
+  const status = run(["status"], { cwd: proj, env });
+  assert.match(status, /tree\b.*\bok\b/s);
 });
