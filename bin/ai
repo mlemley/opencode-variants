@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+import { runAi } from "../src/ai.js";
+
+runAi(process.argv.slice(2));

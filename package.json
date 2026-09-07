@@ -1,0 +1,9 @@
+{
+  "name": "ai-model-configure",
+  "version": "0.2.0",
+  "description": "Per-directory OpenCode model routing (cloud/hybrid/all-local) via generated direnv configs",
+  "type": "module",
+  "bin": { "ai-model-configure": "bin/ai-model-configure", "ai-cost": "bin/ai-cost", "ai": "bin/ai" },
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test test/*.test.js" }
+}

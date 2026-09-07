@@ -1,0 +1,4 @@
+docs/superpowers/
+node_modules/
+.ai-model-configure.json
+.envrc
