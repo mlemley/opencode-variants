@@ -57,13 +57,13 @@ never silently overwritten.
 ### Homebrew
 
 ```sh
-brew tap <you>/tools
-brew install <you>/tools/opencode-variants
+brew tap mlemley/tools
+brew install opencode-variants
 ```
 
-Installs `ov` (long alias `opencode-variants`). The formula lives in
-this repo at `Formula/opencode-variants.rb` (also the source of the
-tap); point `url`/`homepage` at the release archive when cutting a tag.
+Installs `ov` (long alias `opencode-variants`). The published formula
+lives in [mlemley/homebrew-tools](https://github.com/mlemley/homebrew-tools);
+`Formula/opencode-variants.rb` in this repo is the source of truth for it.
 
 ### npm / direct
 
