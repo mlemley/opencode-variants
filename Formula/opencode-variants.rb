@@ -1,5 +1,5 @@
 class OpencodeVariants < Formula
-  desc "Per-directory OpenCode model routing (cloud/hybrid/all-local) via generated direnv configs"
+  desc "Per-directory OpenCode model routing via generated direnv configs"
   homepage "https://github.com/mlemley/opencode-variants"
   url "https://github.com/mlemley/opencode-variants/archive/refs/tags/v0.2.0.tar.gz"
   sha256 "db04a8ef07043724b3d0f56037c51b2a79a74a144cc391a9ad04a3092afc2e07"
@@ -11,12 +11,12 @@ class OpencodeVariants < Formula
     libexec.install Dir["*"]
     (bin/"ov").write <<~EOS
       #!/bin/bash
-      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/opencode-variants" "$@"
+      exec "#{formula_opt_bin("node")}/node" "#{libexec}/bin/opencode-variants" "$@"
     EOS
     chmod 0755, bin/"ov"
     (bin/"opencode-variants").write <<~EOS
       #!/bin/bash
-      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/opencode-variants" "$@"
+      exec "#{formula_opt_bin("node")}/node" "#{libexec}/bin/opencode-variants" "$@"
     EOS
     chmod 0755, bin/"opencode-variants"
   end
