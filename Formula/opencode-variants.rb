@@ -1,13 +1,8 @@
-# TODO before publishing: replace url/homepage with the real release archive once
-# the repo lands on GitHub/GitLab. Local testing uses the file:// tarball built by:
-#   git archive --format=tar.gz --prefix=opencode-variants-<version>/ \
-#     -o /tmp/opencode-variants-<version>.tar.gz HEAD
 class OpencodeVariants < Formula
   desc "Per-directory OpenCode model routing (cloud/hybrid/all-local) via generated direnv configs"
-  version "0.2.0"
-  homepage "https://example.invalid/opencode-variants" # TODO real homepage
-  url "file:///tmp/opencode-variants-0.2.0.tar.gz"
-  sha256 "179e1cfd9d52bca372553edb07f582cbf64adf7a46ea2dc7f2830f26cf21ac53"
+  homepage "https://github.com/mlemley/opencode-variants"
+  url "https://github.com/mlemley/opencode-variants/archive/refs/tags/v0.2.0.tar.gz"
+  sha256 "db04a8ef07043724b3d0f56037c51b2a79a74a144cc391a9ad04a3092afc2e07"
 
   depends_on "direnv"
   depends_on "node"
